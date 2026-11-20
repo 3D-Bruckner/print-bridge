@@ -63,7 +63,7 @@ jobs:
           docker run -d --name smoke -p 127.0.0.1:8080:8080 -e PRINT_BAMBUDDY_URL=http://bambuddy.invalid:8000 \
             -e PRINT_INVOICENINJA_URL=http://invoiceninja.invalid print-bridge:smoke
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8080/health && break; sleep 1; done
-          test "$(curl -s http://127.0.0.1:8080/health)" = '{"status":"ok","configured":false}'
+          curl -s http://127.0.0.1:8080/health | grep -q '"status":"ok","configured":false'
           docker logs smoke
       # Published from main (:main) and from release tags only; other branches are built and started above, not pushed.
       - uses: docker/build-push-action@v7

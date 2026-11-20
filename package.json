@@ -1,6 +1,6 @@
 {
   "name": "print-bridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "3dbruckner.de's printer at home and Invoice Ninja: an approved quote waits for its print, a finished print goes back to its quote and makes the invoice draft.",
   "private": true,
   "license": "AGPL-3.0-only",
