@@ -22,6 +22,6 @@ EXPOSE 8080
 # GET /health: 503 when the database does not answer. Node, not wget: the image has no shell.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD ["/nodejs/bin/node", "-e", "fetch(`http://127.0.0.1:${process.env.PORT}/health`).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-# --use-system-ca: Home Assistant, Invoice Ninja and ntfy are trusted through the image's certificate store; an extra CA comes in with
+# --use-system-ca: Bambuddy, Invoice Ninja and ntfy are trusted through the image's certificate store; an extra CA comes in with
 # NODE_EXTRA_CA_CERTS pointing to a mounted file.
 ENTRYPOINT ["/nodejs/bin/node", "--use-system-ca", "docker-entrypoint.mjs"]

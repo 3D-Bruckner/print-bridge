@@ -1,5 +1,6 @@
-// Home Assistant (the A1's bambu_lab entities through POST /api/template), Invoice Ninja (quotes, invoices, their conversion) and ntfy in
-// memory behind a fake fetch, in the shapes the real ones answer with (checked 2026-11-20 on Home Assistant and Invoice Ninja 5.13).
+// Bambuddy's archive (GET /api/v1/archives/), Invoice Ninja (quotes, invoices, their conversion) and ntfy in memory behind a fake fetch,
+// in the shapes the real ones answer with (Bambuddy 1.3.1's ArchiveResponse, Invoice Ninja 5.13). `printer` is what the A1 does now;
+// every start it reports becomes an archive entry of its own, as Bambuddy makes one per print.
 import type { Runtime } from "../runtime.ts";
 import { fakeFetch, type Call } from "./fetch.ts";
 
@@ -9,6 +10,7 @@ export type FakeInvoice = { id: string; number: string; status_id: string; custo
 
 export function fakeServices(rt: Runtime, printer: Printer) {
   const quotes = new Map<string, FakeQuote>();
+  const archives = new Map<string, Record<string, unknown>>();
   const invoices = new Map<string, FakeInvoice>();
   const pushes: { title: string; message: string }[] = [];
   let fail: (c: Call) => Response | undefined = () => undefined;
@@ -21,13 +23,25 @@ export function fakeServices(rt: Runtime, printer: Printer) {
       pushes.push({ title: c.headers.title!, message: String(c.body) });
       return new Response("ok");
     }
-    if (c.url === `${rt.config.ha.url}/api/template`) {
-      if (c.headers.authorization !== `Bearer ${rt.config.ha.token}`) return new Response(null, { status: 401 });
-      const t = (JSON.parse(String(c.body)) as { template: string }).template;
-      if (rt.config.ha.printer !== "a1_test")
-        return new Response(JSON.stringify({ exists: false, status: "unknown", task: "unknown", grams: "unknown", start: "unknown", end: "unknown" }));
-      if (!t.includes(`sensor.${rt.config.ha.printer}_`)) return new Response("unknown entity", { status: 400 });
-      return new Response(JSON.stringify({ exists: true, ...printer }));
+    if (c.url.startsWith(`${rt.config.bambuddy.url}/api/v1/archives/`)) {
+      if (c.headers["x-api-key"] !== "bb_test") return new Response(JSON.stringify({ detail: "Not authenticated" }), { status: 401 });
+      const status = { running: "printing", finish: "completed", failed: "failed" }[printer.status];
+      const start = Date.parse(printer.start);
+      if (status && !Number.isNaN(start)) {
+        const key = String(start);
+        const a = archives.get(key) ?? { id: archives.size + 1, filename: "plate_1.3mf" };
+        const seconds = Math.round((Date.parse(printer.end) - start) / 1000);
+        Object.assign(a, {
+          print_name: printer.task,
+          status,
+          started_at: printer.start,
+          completed_at: status === "printing" ? null : printer.end,
+          actual_time_seconds: status === "printing" || Number.isNaN(seconds) ? null : seconds,
+          filament_used_grams: Number(printer.grams),
+        });
+        archives.set(key, a);
+      }
+      return Response.json([...archives.values()].sort((x, y) => Number(y.id) - Number(x.id)));
     }
     if (c.url.startsWith(`${rt.config.invoiceNinja.url}/api/v1/`)) {
       if (c.headers["x-api-token"] !== rt.config.invoiceNinja.token) return new Response(null, { status: 401 });
@@ -66,6 +80,7 @@ export function fakeServices(rt: Runtime, printer: Printer) {
   return {
     calls: f.calls,
     printer,
+    archives,
     quotes,
     invoices,
     pushes,

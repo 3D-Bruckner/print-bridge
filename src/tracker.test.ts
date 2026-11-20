@@ -1,4 +1,4 @@
-// The print-bridge's minute against Home Assistant and Invoice Ninja in memory (testing/services.ts).
+// The print-bridge's minute against Bambuddy and Invoice Ninja in memory (testing/services.ts).
 import { afterEach, describe, expect, it } from "vitest";
 import { tick } from "./tracker.ts";
 import { testRuntime } from "./testing/runtime.ts";
@@ -177,7 +177,7 @@ describe("the minute", () => {
   });
 
   it("waits without its tokens", async () => {
-    const { rt, svc } = setup(IDLE, { PRINT_HA_TOKEN: "", PRINT_INVOICENINJA_TOKEN: "" });
+    const { rt, svc } = setup(IDLE, { PRINT_BAMBUDDY_KEY: "", PRINT_INVOICENINJA_TOKEN: "" });
     await tick(rt);
     expect(svc.calls).toEqual([]);
   });
@@ -190,18 +190,6 @@ describe("the minute", () => {
     await tick(rt);
     await tick(rt);
     expect([q.status_id, q.custom_value2, svc.pushes.length]).toEqual(["3", "wartet", 0]);
-  });
-
-  it("knows a print again when Home Assistant writes its start differently", async () => {
-    const { rt, svc } = setup();
-    const q = svc.quote("3D-2026-0010");
-    await firstTick(rt);
-    Object.assign(svc.printer, finished("3D-2026-0010 Vase"));
-    await tick(rt);
-    Object.assign(svc.printer, finished("3D-2026-0010 Vase", "2026-11-21T10:00:00.123+01:00"));
-    await tick(rt);
-    expect(q.private_notes.match(/Gedruckt am/g)).toHaveLength(1);
-    expect(svc.pushes).toHaveLength(1);
   });
 
   it("matches by number only an approved quote, and says so for another", async () => {
@@ -279,13 +267,13 @@ describe("the minute", () => {
     await firstTick(rt);
     for (let i = 0; i < 31; i++) await tick(rt);
     expect(svc.pushes.map((p) => p.title)).toEqual(["print-bridge hängt"]);
-    expect(svc.pushes[0]!.message).toBe("Seit 30 Minuten klappt nichts: invoiceninja answered 401. Ein Token falsch oder ein Dienst aus?");
+    expect(svc.pushes[0]!.message).toBe("Seit 30 Minuten klappt nichts: invoiceninja answered 401. Ein Schlüssel falsch oder ein Dienst aus?");
   });
 
-  it("fails loudly for a printer Home Assistant doesn't have", async () => {
-    const { rt, svc } = setup(IDLE, { PRINT_HA_PRINTER: "a1_typo" });
+  it("pushes once it has failed for half an hour with a wrong Bambuddy key", async () => {
+    const { rt, svc } = setup(IDLE, { PRINT_BAMBUDDY_KEY: "bb_wrong" });
     await firstTick(rt);
     for (let i = 0; i < 31; i++) await tick(rt);
-    expect(svc.pushes[0]?.message).toContain("homeassistant has no printer a1_typo");
+    expect(svc.pushes[0]?.message).toContain("bambuddy answered 401");
   });
 });

@@ -1,21 +1,20 @@
 // The print-bridge's minute (design "What it does"): approved quotes wait; a print that starts belongs to its quote (im Druck); a print
 // that ends writes its time and grams to the quote and, with its last part, makes the invoice draft (fertig); a failed one puts the quote
-// back to waiting. Every step is written down before the next (src/db), so a failure in the middle is picked up the next minute without
-// writing anything twice. Without its tokens it does nothing (design P8).
+// back to waiting. The prints are Bambuddy's archive (one entry per print, by its id); every step is written down before the next
+// (src/db), so a failure in the middle is picked up the next minute without writing anything twice. Without its key and token it does
+// nothing (design P8).
 //
-// Converting is the one step that is hard to undo, so it happens only when everything is certain (review of 2026-11-20): the print was
-// seen starting, or began after the bridge first saw the printer; its name carries the number of an approved quote (a print matched as
-// "the only waiting quote" is noted, never converted); and the quote isn't converted already (a reprint is noted and nothing else).
+// Converting is the one step that is hard to undo, so it happens only when everything is certain (review of 2026-11-20, design P9): the
+// print was seen running, or began after the bridge first looked; its name carries the number of an approved quote (a print matched as
+// "the only waiting quote" is noted, never converted); every part is done; and the quote isn't converted already (a reprint is noted).
+import { recentPrints, type Print } from "./bambuddy.ts";
 import { configured } from "./config.ts";
-import { readPrinter, type PrinterState } from "./homeassistant.ts";
 import { addQuoteNote, APPROVED, approvedQuotes, CONVERTED, getQuote, invoiceFor, quoteByNumber, setDruckstatus, type Quote } from "./invoiceninja.ts";
 import type { PrintRow } from "./db/store.ts";
 import { push } from "./push.ts";
 import type { Runtime } from "./runtime.ts";
 
-const ACTIVE = new Set(["running", "prepare", "pause", "slicing", "init"]);
-const ENDED = new Set(["finish", "failed"]);
-/** The time the bridge first saw the printer on: an ended print that began before it is history, not work. */
+/** When the bridge first looked at Bambuddy's archive: an ended print that began before it is history, not work. */
 const SINCE = "since";
 /** After this many failed minutes in a row, one push (review I4). */
 const STUCK_AFTER = 30;
@@ -31,7 +30,7 @@ export async function tick(rt: Runtime): Promise<void> {
   if (!configured(rt.config)) {
     if (!toldUnconfigured.has(rt.store)) {
       toldUnconfigured.add(rt.store);
-      rt.log.warn("print-bridge: PRINT_HA_TOKEN or PRINT_INVOICENINJA_TOKEN is missing, so it waits");
+      rt.log.warn("print-bridge: PRINT_BAMBUDDY_KEY or PRINT_INVOICENINJA_TOKEN is missing, so it waits");
     }
     return;
   }
@@ -48,33 +47,30 @@ export async function tick(rt: Runtime): Promise<void> {
     rt.log.warn({ error, failures: h.failures }, "print-bridge: this minute failed; the next one tries again");
     if (h.failures >= STUCK_AFTER && !h.told) {
       h.told = true;
-      await push(rt, { title: "print-bridge hängt", message: `Seit ${STUCK_AFTER} Minuten klappt nichts: ${error}. Ein Token falsch oder ein Dienst aus?` });
+      await push(rt, {
+        title: "print-bridge hängt",
+        message: `Seit ${STUCK_AFTER} Minuten klappt nichts: ${error}. Ein Schlüssel falsch oder ein Dienst aus?`,
+      });
     }
   }
 }
 
 const now = (rt: Runtime) => rt.clock().toISOString();
 
-/** A start time as an instant to the minute, so another spelling of the same time is the same print (review C1). */
-function startKey(start: string): string {
-  const t = Date.parse(start);
-  return Number.isNaN(t) ? start : new Date(Math.floor(t / 60_000) * 60_000).toISOString();
-}
+const seen = (rt: Runtime, id: string) =>
+  rt.store.insertPrint({ start: id, task: "", quote_id: null, quote_number: null, part: null, parts: null, state: "seen" }, now(rt));
 
 async function minute(rt: Runtime): Promise<void> {
   const waiting = await markWaiting(rt);
-  const printer = await readPrinter(rt);
-  if (!printer) return; // off: nothing to learn, and the first start waits for the printer to be on (review C1)
+  const prints = await recentPrints(rt);
   if (!rt.store.getState(SINCE)) {
-    // The first time the bridge sees the printer on: what it reports now happened before the bridge was there (design P5).
-    if (printer.start)
-      rt.store.insertPrint({ start: startKey(printer.start), task: "", quote_id: null, quote_number: null, part: null, parts: null, state: "seen" }, now(rt));
+    // The first look: everything archived so far happened before the bridge was there (design P5).
+    for (const p of prints) seen(rt, p.id);
     rt.store.setState(SINCE, now(rt));
-    rt.log.info({ printer: printer.status }, "print-bridge: first sight of the printer; its current print is left alone");
+    rt.log.info({ prints: prints.length }, "print-bridge: first look at the archive; what is there is left alone");
     return;
   }
-  if (!printer.start) return;
-  await follow(rt, printer, waiting);
+  for (const p of prints) await follow(rt, p, waiting);
 }
 
 /** Approved quotes without a Druckstatus get "wartet"; the quotes waiting now. */
@@ -88,74 +84,75 @@ async function markWaiting(rt: Runtime): Promise<Quote[]> {
   return approved.filter((q) => q.druckstatus === "wartet");
 }
 
-/** "… (2/3)" at the end of a task name: part 2 of 3; "bad" for a suffix that looks like one but isn't (review minor). */
-function partOf(task: string): { part: number; parts: number } | "bad" | null {
-  const m = task.match(/\((\d+)\s*\/\s*(\d+)\)\s*$/);
+/** "… (2/3)" at the end of a print's name: part 2 of 3; "bad" for a suffix that looks like one but isn't. */
+function partOf(name: string): { part: number; parts: number } | "bad" | null {
+  const m = name.match(/\((\d+)\s*\/\s*(\d+)\)\s*$/);
   if (!m) return null;
   const part = Number(m[1]);
   const parts = Number(m[2]);
   return part >= 1 && parts >= part ? { part, parts } : "bad";
 }
 
-async function follow(rt: Runtime, p: PrinterState, waiting: Quote[]): Promise<void> {
-  const key = startKey(p.start!);
-  let row = rt.store.print(key);
+async function follow(rt: Runtime, p: Print, waiting: Quote[]): Promise<void> {
+  let row = rt.store.print(p.id);
   if (!row) {
-    // A print not seen before is work only while it runs, or when it ended after the bridge first saw the printer: an old "finish"
-    // still shown after a night switched off is history (review C1).
+    // An archive entry not seen before is work while it prints, or when it ended after the bridge first looked; one that never
+    // started (an uploaded file, not a print) or began before that is history (review C1).
     const since = Date.parse(rt.store.getState(SINCE)!);
-    const fresh = ACTIVE.has(p.status) || (ENDED.has(p.status) && Date.parse(key) >= since - 60_000);
-    if (!fresh) {
-      rt.store.insertPrint({ start: key, task: "", quote_id: null, quote_number: null, part: null, parts: null, state: "seen" }, now(rt));
-      return;
-    }
-    row = await begin(rt, key, p, waiting);
+    const began = p.startedAt ? Date.parse(p.startedAt) : NaN;
+    const fresh = p.status === "printing" || ((p.status === "completed" || p.status === "failed") && began >= since - 60_000);
+    if (!fresh) return seen(rt, p.id);
+    row = await begin(rt, p, waiting);
   }
   if (row.state !== "running" || !row.quote_id) return;
-  if (p.status === "finish") return finish(rt, row, p);
+  if (p.status === "completed") return finish(rt, row, p);
   if (p.status === "failed") return fail(rt, row);
 }
 
-async function unmatched(rt: Runtime, row: Omit<PrintRow, "state" | "note_written" | "assumed" | "updated_at">, message: string): Promise<PrintRow> {
-  rt.store.insertPrint({ ...row, quote_id: null, quote_number: null, state: "unmatched" }, now(rt));
+async function unmatched(rt: Runtime, id: string, name: string, message: string): Promise<PrintRow> {
+  rt.store.insertPrint({ start: id, task: name, quote_id: null, quote_number: null, part: null, parts: null, state: "unmatched" }, now(rt));
   await push(rt, { title: "Druck ohne Angebot", message });
-  rt.log.warn("print-bridge: a print without a quote");
-  return rt.store.print(row.start)!;
+  rt.log.warn({ print: id }, "print-bridge: a print without a quote");
+  return rt.store.print(id)!;
 }
 
 /** A print not seen before: its approved quote by number, else (noted only, never converted) the only waiting one (design P4). */
-async function begin(rt: Runtime, key: string, p: PrinterState, waiting: Quote[]): Promise<PrintRow> {
-  const number = p.task.match(rt.config.quotePattern)?.[0];
-  const parts = partOf(p.task);
-  const row = {
-    start: key,
-    task: p.task,
-    quote_id: null as string | null,
-    quote_number: null as string | null,
-    part: null as number | null,
-    parts: null as number | null,
-  };
-  if (parts === "bad") return unmatched(rt, row, "Ein Druck hat einen Teil-Zusatz, der nicht passt (z. B. „(3/2)“); nichts eingetragen.");
-  if (parts) Object.assign(row, parts);
+async function begin(rt: Runtime, p: Print, waiting: Quote[]): Promise<PrintRow> {
+  const number = p.name.match(rt.config.quotePattern)?.[0];
+  const parts = partOf(p.name);
+  if (parts === "bad") return unmatched(rt, p.id, p.name, "Ein Druck hat einen Teil-Zusatz, der nicht passt (z. B. „(3/2)“); nichts eingetragen.");
   let quote: Quote | null;
   let assumed = false;
   if (number) {
     quote = await quoteByNumber(rt, number);
-    if (!quote) return unmatched(rt, row, `Der Druck nennt ${number}, aber dieses Angebot gibt es nicht; nichts eingetragen.`);
+    if (!quote) return unmatched(rt, p.id, p.name, `Der Druck nennt ${number}, aber dieses Angebot gibt es nicht; nichts eingetragen.`);
     if (quote.statusId !== APPROVED && quote.statusId !== CONVERTED)
-      return unmatched(rt, row, `Der Druck nennt ${number}, aber das Angebot ist noch nicht angenommen; nichts eingetragen.`);
-  } else if (p.task.trim() && waiting.length === 1) {
+      return unmatched(rt, p.id, p.name, `Der Druck nennt ${number}, aber das Angebot ist noch nicht angenommen; nichts eingetragen.`);
+  } else if (p.name && waiting.length === 1) {
     quote = waiting[0]!;
     assumed = true;
   } else {
     const which = waiting.length === 0 ? "kein Angebot wartet" : `es warten ${waiting.length} Angebote (${waiting.map((q) => q.number).join(", ")})`;
     return unmatched(
       rt,
-      row,
+      p.id,
+      p.name,
       `Ein Druck ohne Angebotsnummer im Namen läuft, und ${which}. Ihn in Invoice Ninja von Hand eintragen; beim nächsten die Nummer in den Namen setzen (z. B. „${waiting[0]?.number ?? "3D-2026-0010"} Vase“).`,
     );
   }
-  rt.store.insertPrint({ ...row, quote_id: quote.id, quote_number: quote.number, state: "running", assumed: assumed ? 1 : 0 }, now(rt));
+  rt.store.insertPrint(
+    {
+      start: p.id,
+      task: p.name,
+      quote_id: quote.id,
+      quote_number: quote.number,
+      part: parts?.part ?? null,
+      parts: parts?.parts ?? null,
+      state: "running",
+      assumed: assumed ? 1 : 0,
+    },
+    now(rt),
+  );
   if (quote.statusId === APPROVED) await setDruckstatus(rt, "quotes", quote.id, "im Druck");
   rt.log.info({ quote: quote.number, assumed }, "print-bridge: a print started");
   if (assumed)
@@ -163,23 +160,27 @@ async function begin(rt: Runtime, key: string, p: PrinterState, waiting: Quote[]
       title: `Druck zugeordnet: ${quote.number}`,
       message: `Ein Druck ohne Angebotsnummer im Namen läuft; es wartet nur ${quote.number}, also ist er dort eingetragen.`,
     });
-  return rt.store.print(key)!;
+  return rt.store.print(p.id)!;
 }
 
-function duration(start: string, end: string | null): string | null {
-  if (!end) return null;
-  const minutes = Math.round((Date.parse(end) - Date.parse(start)) / 60_000);
+function duration(p: Print): string | null {
+  const minutes =
+    p.seconds !== null
+      ? Math.round(p.seconds / 60)
+      : p.startedAt && p.completedAt
+        ? Math.round((Date.parse(p.completedAt) - Date.parse(p.startedAt)) / 60_000)
+        : NaN;
   if (!Number.isFinite(minutes) || minutes <= 0) return null;
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
 }
 
 const de = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
 
-async function finish(rt: Runtime, row: PrintRow, p: PrinterState): Promise<void> {
-  const took = duration(row.start, p.end);
+async function finish(rt: Runtime, row: PrintRow, p: Print): Promise<void> {
+  const took = duration(p);
   const what = [took, p.grams !== null ? `${de(p.grams)} g` : null].filter(Boolean).join(", ");
   if (!row.note_written) {
-    const day = new Date(p.end ?? row.start).toLocaleDateString("de-DE", {
+    const day = new Date(p.completedAt ?? p.startedAt ?? now(rt)).toLocaleDateString("de-DE", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -225,7 +226,7 @@ async function finish(rt: Runtime, row: PrintRow, p: PrinterState): Promise<void
 
 /** Whether this part completes the quote: every part 1..parts done, this one included, each counted once (review I2). */
 function lastPart(rt: Runtime, row: PrintRow): boolean {
-  const others = rt.store.partsDone(row.quote_id!); // done rows' distinct parts, without this row (still "running")
+  const others = rt.store.partsDone(row.quote_id!);
   const thisIsNew = !rt.store.partDone(row.quote_id!, row.part!);
   return others + (thisIsNew ? 1 : 0) >= row.parts!;
 }

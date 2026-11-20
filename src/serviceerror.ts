@@ -1,7 +1,7 @@
-// What a call to Home Assistant or Invoice Ninja that didn't work becomes: which service, and its status (null for a network error or a
+// What a call to Bambuddy or Invoice Ninja that didn't work becomes: which service, and its status (null for a network error or a
 // timeout). The message is only those two, never anything from the answer's body, which may echo a person's data.
 
-export type Service = "homeassistant" | "invoiceninja";
+export type Service = "bambuddy" | "invoiceninja";
 
 export class ServiceError extends Error {
   readonly service: Service;

@@ -4,7 +4,7 @@
 
 Report it privately through [**Report a vulnerability**](https://github.com/3D-Bruckner/print-bridge/security/advisories/new) on this repository's Security tab. Please do not open a public issue for it.
 
-This covers the service and the image `ghcr.io/3d-bruckner/print-bridge`: what it reads from Home Assistant and writes to Invoice Ninja.
+This covers the service and the image `ghcr.io/3d-bruckner/print-bridge`: what it reads from Bambuddy and writes to Invoice Ninja.
 
 Helpful in a report: the commit or image tag, how the instance is configured as far as it matters, and the steps that show the problem.
 

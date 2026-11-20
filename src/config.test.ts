@@ -7,14 +7,16 @@ import { TEST_ENV } from "./testing/runtime.ts";
 describe("loadConfig", () => {
   it("reads every setting, and waits without the tokens", () => {
     const c = loadConfig(TEST_ENV);
-    expect(c).toMatchObject({ ha: { url: "http://ha.test:8123", token: "ha_test", printer: "a1_test" }, dataDir: "/data", port: 8080 });
+    expect(c).toMatchObject({ bambuddy: { url: "http://bambuddy.test:8000", key: "bb_test" }, dataDir: "/data", port: 8080 });
     expect(c.quotePattern.test("3D-2026-0010 Vase")).toBe(true);
     expect(configured(c)).toBe(true);
-    expect(configured(loadConfig({ ...TEST_ENV, PRINT_HA_TOKEN: "" }))).toBe(false);
+    expect(configured(loadConfig({ ...TEST_ENV, PRINT_BAMBUDDY_KEY: "" }))).toBe(false);
   });
 
   it("names what is wrong", () => {
-    expect(() => loadConfig({ ...TEST_ENV, PRINT_HA_URL: "ha", PRINT_HA_PRINTER: "Sensor A1" })).toThrow(/PRINT_HA_URL.*PRINT_HA_PRINTER/);
+    expect(() => loadConfig({ ...TEST_ENV, PRINT_BAMBUDDY_URL: "bambuddy", PRINT_INVOICENINJA_URL: "ftp://x" })).toThrow(
+      /PRINT_BAMBUDDY_URL.*PRINT_INVOICENINJA_URL/,
+    );
     expect(() => loadConfig({ ...TEST_ENV, PRINT_QUOTE_PATTERN: "(" })).toThrow(/PRINT_QUOTE_PATTERN/);
   });
 });

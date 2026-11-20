@@ -7,9 +7,8 @@ import { loadConfig } from "../config.ts";
 import { openRuntime, type Runtime } from "../runtime.ts";
 
 export const TEST_ENV = {
-  PRINT_HA_URL: "http://ha.test:8123",
-  PRINT_HA_TOKEN: "ha_test",
-  PRINT_HA_PRINTER: "a1_test",
+  PRINT_BAMBUDDY_URL: "http://bambuddy.test:8000",
+  PRINT_BAMBUDDY_KEY: "bb_test",
   PRINT_INVOICENINJA_URL: "https://invoices.test",
   PRINT_INVOICENINJA_TOKEN: "in_test",
   PRINT_NTFY_URL: "https://ntfy.test/topic",
