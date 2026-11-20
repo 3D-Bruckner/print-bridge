@@ -29,7 +29,11 @@ async function api<T>(rt: Runtime, method: string, path: string, body?: unknown)
     body: body === undefined ? undefined : JSON.stringify(body),
     timeoutMs: 20_000,
   });
-  return (await r.json()) as T;
+  try {
+    return (await r.json()) as T;
+  } catch {
+    throw new Error("invoiceninja sent an answer that isn't JSON");
+  }
 }
 
 export const APPROVED = "3";
@@ -54,8 +58,10 @@ export async function setDruckstatus(rt: Runtime, entity: "quotes" | "invoices",
   await api(rt, "PUT", `/${entity}/${encodeURIComponent(id)}`, { custom_value2: value });
 }
 
+/** Adds `line` to the quote's private notes, unless it is there already (an earlier try whose answer was lost). */
 export async function addQuoteNote(rt: Runtime, id: string, line: string): Promise<void> {
   const q = await getQuote(rt, id);
+  if (q.privateNotes.split("\n").includes(line)) return;
   await api(rt, "PUT", `/quotes/${encodeURIComponent(id)}`, { private_notes: q.privateNotes ? `${q.privateNotes}\n${line}` : line });
 }
 

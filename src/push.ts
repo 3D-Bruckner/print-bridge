@@ -1,6 +1,6 @@
-// A push to the person running the bridge, through ntfy (PRINT_NTFY_URL, a topic whose name is the secret): when a handover fails,
-// when it is given up, and when files were left in noticebox. Its text names the form, the step and the quote's number, never a person
-// or a field. Without a topic nothing is sent (logged once); a failed push is logged and never in the handover's way.
+// A push to Marcel through ntfy (PRINT_NTFY_URL, a topic whose name is the secret): a print done, a part done, a print failed or
+// without a quote, the bridge stuck. Its text names quote and invoice numbers, times and grams, never a person or a print's name. Without
+// a topic nothing is sent (logged once); a failed push is logged and never in the way.
 import type { Runtime } from "./runtime.ts";
 
 const told = new WeakSet<object>();

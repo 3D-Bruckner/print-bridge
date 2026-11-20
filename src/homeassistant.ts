@@ -13,7 +13,8 @@ const known = (v: string | undefined): string | null => (v && !["unknown", "unav
 /** The printer now; null while Home Assistant doesn't know (the printer is off). */
 export async function readPrinter(rt: Runtime): Promise<PrinterState | null> {
   const p = `sensor.${rt.config.ha.printer}_`;
-  const template = `{{ {${Object.entries(ENTITIES)
+  // `exists`: whether Home Assistant has the printer at all; a wrong PRINT_HA_PRINTER would otherwise look like a printer that is off.
+  const template = `{{ {"exists": states.sensor.${rt.config.ha.printer}_${ENTITIES.status} is not none, ${Object.entries(ENTITIES)
     .map(([k, e]) => `"${k}": states("${p}${e}")`)
     .join(", ")}} | tojson }}`;
   const r = await call(rt, "homeassistant", `${rt.config.ha.url}/api/template`, {
@@ -22,7 +23,13 @@ export async function readPrinter(rt: Runtime): Promise<PrinterState | null> {
     body: JSON.stringify({ template }),
     timeoutMs: 15_000,
   });
-  const s = JSON.parse(await r.text()) as Record<keyof typeof ENTITIES, string>;
+  let s: Record<keyof typeof ENTITIES, string> & { exists?: boolean };
+  try {
+    s = JSON.parse(await r.text()) as typeof s;
+  } catch {
+    throw new Error("homeassistant sent an answer that isn't JSON");
+  }
+  if (s.exists === false) throw new Error(`homeassistant has no printer ${rt.config.ha.printer} (PRINT_HA_PRINTER)`);
   const status = known(s.status);
   if (!status) return null;
   const grams = known(s.grams);

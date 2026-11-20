@@ -8,10 +8,12 @@ export type PrintPatch = Partial<Omit<PrintRow, "start">>;
 
 export type Store = {
   print(start: string): PrintRow | undefined;
-  insertPrint(row: Omit<PrintRow, "note_written" | "updated_at">, at: string): void;
+  insertPrint(row: Omit<PrintRow, "note_written" | "assumed" | "updated_at"> & { assumed?: number }, at: string): void;
   updatePrint(start: string, patch: PrintPatch, at: string): void;
-  /** How many parts of the quote's print are done. */
+  /** How many different parts of the quote's print are done (a part printed twice counts once). */
   partsDone(quoteId: string): number;
+  /** Whether this part of the quote's print is done already. */
+  partDone(quoteId: string, part: number): boolean;
   getState(key: string): string | undefined;
   setState(key: string, value: string): void;
   transaction<T>(fn: () => T): T;
@@ -36,10 +38,12 @@ export function openStore(dataDir: string): Store {
       first(
         q
           .selectFrom("prints")
-          .select((eb) => eb.fn.countAll<number>().as("n"))
+          .select((eb) => eb.fn.count<number>("part").distinct().as("n"))
           .where("quote_id", "=", quoteId)
           .where("state", "=", "done"),
       )?.n ?? 0,
+    partDone: (quoteId, part) =>
+      first(q.selectFrom("prints").select("start").where("quote_id", "=", quoteId).where("part", "=", part).where("state", "=", "done")) !== undefined,
     getState: (key) => first(q.selectFrom("bridge_state").select("value").where("key", "=", key))?.value,
     setState: (key, value) =>
       void run(

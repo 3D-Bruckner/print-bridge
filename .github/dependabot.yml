@@ -59,21 +59,3 @@ updates:
     groups:
       actions:
         patterns: ["*"]
-
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "05:00"
-      timezone: Europe/Berlin
-    cooldown:
-      default-days: 14
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: Dependencies
-    labels: [dependencies]
-    groups:
-      # The docs site's MkDocs and its plugins (requirements-docs.txt).
-      docs:
-        patterns: ["*"]

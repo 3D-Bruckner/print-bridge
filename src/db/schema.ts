@@ -11,6 +11,8 @@ export interface PrintsTable {
   state: "seen" | "running" | "unmatched" | "done" | "failed";
   /** 0 or 1. */
   note_written: Generated<number>;
+  /** 0 or 1. */
+  assumed: Generated<number>;
   updated_at: string;
 }
 

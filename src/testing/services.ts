@@ -24,8 +24,10 @@ export function fakeServices(rt: Runtime, printer: Printer) {
     if (c.url === `${rt.config.ha.url}/api/template`) {
       if (c.headers.authorization !== `Bearer ${rt.config.ha.token}`) return new Response(null, { status: 401 });
       const t = (JSON.parse(String(c.body)) as { template: string }).template;
+      if (rt.config.ha.printer !== "a1_test")
+        return new Response(JSON.stringify({ exists: false, status: "unknown", task: "unknown", grams: "unknown", start: "unknown", end: "unknown" }));
       if (!t.includes(`sensor.${rt.config.ha.printer}_`)) return new Response("unknown entity", { status: 400 });
-      return new Response(JSON.stringify(printer));
+      return new Response(JSON.stringify({ exists: true, ...printer }));
     }
     if (c.url.startsWith(`${rt.config.invoiceNinja.url}/api/v1/`)) {
       if (c.headers["x-api-token"] !== rt.config.invoiceNinja.token) return new Response(null, { status: 401 });

@@ -52,7 +52,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   const e = parsed.data;
   let quotePattern: RegExp;
   try {
-    quotePattern = new RegExp(e.PRINT_QUOTE_PATTERN ?? "3D-\\d{4}-\\d{4}");
+    quotePattern = new RegExp(e.PRINT_QUOTE_PATTERN ?? "\\b3D-\\d{4}-\\d{4}\\b");
   } catch {
     throw new Error("PRINT_QUOTE_PATTERN must be a regular expression");
   }

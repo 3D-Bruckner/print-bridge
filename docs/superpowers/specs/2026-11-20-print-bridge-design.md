@@ -29,8 +29,15 @@ Every minute, from the homelab (it only connects out):
   filament stock) would add a third MQTT client and ~300 MB on CT 107 (2 GiB, swapping) for nothing H1a uses. They stay possible later.
 - **P3 No orders service:** Invoice Ninja is the job list (an approved quote with Druckstatus `wartet`); the bridge talks to it with a
   token of an Invoice Ninja user allowed only quotes and invoices (the order-flow spec's accepted risk).
-- **P4 A print finds its quote by number in its name**, else the only waiting one; never a guess between two. A print with no quote
-  is pushed and left alone.
+- **P4 A print finds its quote by number in its name**, only an approved one (or a converted one, as a reprint); else the only
+  waiting one, which is noted but never converted (Marcel converts by hand after the push); never a guess between two. A print with no
+  quote is pushed and left alone. (Changed after the review of 2026-11-20: a wrong conversion is the worst outcome.)
+- **P9 Converting only when certain:** the print was seen running, or began after the bridge first saw the printer on (an old
+  "finish" after a night switched off is history); every part `1..m` done, each counted once; the quote not converted already (a
+  reprint is noted and pushed, its invoice and Druckstatus untouched). Invoice Ninja's `auto_convert_quote` is off (checked
+  2026-11-20), so approved quotes stay approved until the bridge or Marcel converts them.
+- **P10 Stuck is pushed:** 30 failed minutes in a row (a wrong token, a service down, a wrong printer prefix) push once; `/health`
+  shows the last minute that worked.
 - **P5 The first start doesn't act on what it finds:** the print the A1 reports at that moment is recorded as seen, so an old finished
   print never converts a quote.
 - **P6 German in Invoice Ninja and the pushes** (Marcel's business language there); code and logs English.
