@@ -8,6 +8,6 @@
 
 A print finds its quote by the quote's number in its name (`3D-2026-0010 Vase`, or `3D-2026-0010 Vase (2/3)` for part 2 of 3). Without a number, it takes the only quote that is waiting. The bridge sends nothing to a customer and starts no print.
 
-It runs in the homelab next to the printer and only connects out. The design and its decisions: [`docs/superpowers/specs/2026-11-20-print-bridge-design.md`](docs/superpowers/specs/2026-11-20-print-bridge-design.md). The whole order flow: [3D-Bruckner/orders](https://github.com/3D-Bruckner/orders).
+It runs in the homelab next to the printer and only connects out. The design and its decisions: [`docs/superpowers/specs/2026-11-20-print-bridge-design.md`](docs/superpowers/specs/2026-11-20-print-bridge-design.md). The whole order flow, from the order form to the invoice draft: [`docs/superpowers/specs/2026-11-20-order-flow-design.md`](docs/superpowers/specs/2026-11-20-order-flow-design.md).
 
 AGPL-3.0-only.

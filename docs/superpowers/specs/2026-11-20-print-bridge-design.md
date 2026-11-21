@@ -1,7 +1,7 @@
 # print-bridge: the A1 at home and Invoice Ninja
 
 Status: decided 2026-11-20 night by Claude on Marcel's word ("make sensible defaults … build everything … deploy"). Part of
-3dbruckner.de's order flow (3D-Bruckner/orders, the spec's steps 3–4): after invoiceninja-bridge, everything from "the customer
+3dbruckner.de's order flow ([`2026-11-20-order-flow-design.md`](2026-11-20-order-flow-design.md), its steps 3–4): after invoiceninja-bridge, everything from "the customer
 approved the quote" to "the invoice draft is ready".
 
 ## What it does
