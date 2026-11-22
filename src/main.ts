@@ -1,6 +1,7 @@
 // The process: reads the settings (a wrong one stops the start, naming it), opens print-bridge.sqlite, runs the minute (tracker.ts) at
-// start and then every 60 s, and answers GET /health on PORT. SIGTERM stops the timer and closes the database.
+// start and then every 60 s, sends the public colour list (colors.ts) every five minutes, and answers GET /health on PORT. SIGTERM stops the timer and closes the database.
 import { createServer } from "node:http";
+import { COLORS_EVERY_MS, syncColors } from "./colors.ts";
 import { loadConfig } from "./config.ts";
 import { log } from "./log.ts";
 import { openRuntime } from "./runtime.ts";
@@ -19,6 +20,15 @@ const minute = () => {
 minute();
 const timer = setInterval(minute, 60_000);
 
+let sending = false;
+const sendColors = () => {
+  if (sending) return;
+  sending = true;
+  void syncColors(rt).finally(() => (sending = false));
+};
+sendColors();
+const colorsTimer = setInterval(sendColors, COLORS_EVERY_MS);
+
 const server = createServer((req, res) => {
   let path = "/";
   try {
@@ -35,6 +45,7 @@ server.listen(config.port, () => log.info({ port: config.port }, "print-bridge s
 process.on("uncaughtException", (e) => log.error({ error: e.name }, "uncaught exception"));
 process.on("SIGTERM", () => {
   clearInterval(timer);
+  clearInterval(colorsTimer);
   server.close(() => {
     rt.store.close();
     process.exit(0);
