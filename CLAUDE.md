@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 print-bridge: the A1 (through Bambuddy's archive) and Invoice Ninja, for 3dbruckner.de's orders. A plain Node/TypeScript
-service, no framework, no sign-in, no API besides /health. Follows Marceltov/engineering-conventions; the rules here win. Design:
+service, no framework, no sign-in, no API besides /health. It also sends the public colour list to gewerbe-1 (`src/colors.ts`). Follows Marceltov/engineering-conventions; the rules here win. Design:
 `docs/superpowers/specs/2026-11-20-print-bridge-design.md` (decisions P1–P8).
 
 ## Commands
