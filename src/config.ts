@@ -4,14 +4,18 @@
 import * as z from "zod";
 
 export type Config = {
-  /** PRINT_BAMBUDDY_URL, PRINT_BAMBUDDY_KEY: Bambuddy and an API key that may read its archive. */
+  /** PRINT_BAMBUDDY_URL, PRINT_BAMBUDDY_KEY: Bambuddy and an API key with "read status" only. */
   bambuddy: { url: string; key: string | null };
   /** PRINT_INVOICENINJA_URL, PRINT_INVOICENINJA_TOKEN: Invoice Ninja and a token of a user allowed quotes and invoices. */
   invoiceNinja: { url: string; token: string | null };
-  /** PRINT_COLORS_URL, PRINT_COLORS_TOKEN: where the public colour list goes, and a token that can only replace it. Without them it is off. */
-  colors: { url: string | null; token: string | null };
+  /** PRINT_CONTROL_TOKEN: what the hide page's proxy sends. Without it the page answers 403. */
+  controlToken: string | null;
+  /** PRINT_COSTS_TOKEN: what the portfolio sends to read the purchase costs. Without it they are unreadable. */
+  costsToken: string | null;
   /** PRINT_NTFY_URL: the topic Marcel's pushes go to. */
   ntfyUrl?: string;
+  /** PRINT_CAMERA_NTFY_URL: the printer's topic, for the dead-camera alert. Default: PRINT_NTFY_URL. */
+  cameraNtfyUrl?: string;
   /** PRINT_QUOTE_PATTERN: a quote's number as it appears in a print's name. */
   quotePattern: RegExp;
   dataDir: string;
@@ -27,9 +31,10 @@ const schema = z.object({
   PRINT_BAMBUDDY_KEY: optional,
   PRINT_INVOICENINJA_URL: url("PRINT_INVOICENINJA_URL"),
   PRINT_INVOICENINJA_TOKEN: optional,
-  PRINT_COLORS_URL: z.preprocess(blank, z.url({ protocol: /^https?$/, error: "PRINT_COLORS_URL must be an http(s) URL" }).optional()),
-  PRINT_COLORS_TOKEN: optional,
+  PRINT_CONTROL_TOKEN: optional,
+  PRINT_COSTS_TOKEN: optional,
   PRINT_NTFY_URL: z.preprocess(blank, z.url({ protocol: /^https?$/, error: "PRINT_NTFY_URL must be an http(s) URL" }).optional()),
+  PRINT_CAMERA_NTFY_URL: z.preprocess(blank, z.url({ protocol: /^https?$/, error: "PRINT_CAMERA_NTFY_URL must be an http(s) URL" }).optional()),
   PRINT_QUOTE_PATTERN: optional,
   DATA_DIR: optional,
   PORT: z.preprocess(blank, z.coerce.number({ error: "PORT must be a port number" }).int().min(1).max(65535).optional()),
@@ -59,12 +64,14 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   const config: Config = {
     bambuddy: { url: trim(e.PRINT_BAMBUDDY_URL), key: e.PRINT_BAMBUDDY_KEY ?? null },
     invoiceNinja: { url: trim(e.PRINT_INVOICENINJA_URL), token: e.PRINT_INVOICENINJA_TOKEN ?? null },
-    colors: { url: e.PRINT_COLORS_URL ?? null, token: e.PRINT_COLORS_TOKEN ?? null },
+    controlToken: e.PRINT_CONTROL_TOKEN ?? null,
+    costsToken: e.PRINT_COSTS_TOKEN ?? null,
     quotePattern,
     dataDir: e.DATA_DIR ?? "/data",
     port: e.PORT ?? 8080,
   };
   if (e.PRINT_NTFY_URL) config.ntfyUrl = e.PRINT_NTFY_URL;
+  if (e.PRINT_CAMERA_NTFY_URL) config.cameraNtfyUrl = e.PRINT_CAMERA_NTFY_URL;
   return config;
 }
 

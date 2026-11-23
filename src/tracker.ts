@@ -191,9 +191,9 @@ async function finish(rt: Runtime, row: PrintRow, p: Print): Promise<void> {
     rt.store.updatePrint(row.start, { note_written: 1 }, now(rt));
   }
   const quote = await getQuote(rt, row.quote_id!);
-  const done = (title: string, message: string) => {
+  const done = async (title: string, message: string): Promise<void> => {
     rt.store.updatePrint(row.start, { state: "done" }, now(rt));
-    return push(rt, { title, message });
+    await push(rt, { title, message });
   };
   // A reprint of a quote that is an invoice already: noted, nothing else (review I1).
   if (quote.statusId === CONVERTED) {

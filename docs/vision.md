@@ -1,6 +1,6 @@
 # Vision: one bridge on gewerbe-1
 
-Status: agreed direction with Marcel on 2026-11-23. **Not built yet.** Today's setup is still what runs. The migration plan and the ADR follow from this page.
+Status: agreed with Marcel on 2026-11-23 and built in 0.3.0. The decision is [ADR 0001](adr/0001-one-bridge-on-gewerbe-1.md).
 
 print-bridge, the homelab's `printer-live` and the live receiver on gewerbe-1 become one service on gewerbe-1. It is the only service that talks to Bambuddy, and everything else gets its printing data from it.
 
@@ -14,7 +14,7 @@ flowchart LR
     B["Bambuddy<br/>printer, camera, spools, costs, library"]
   end
   subgraph gewerbe["gewerbe-1"]
-    PB["print-bridge<br/>orders, live picture, hide switch,<br/>colours, costs and slicing"]
+    PB["print-bridge<br/>orders, live picture, hide switch,<br/>colours, costs"]
     IN["Invoice Ninja"]
     NB["noticebox"]
     INB["invoiceninja-bridge"]
@@ -27,13 +27,13 @@ flowchart LR
     P["Portfolio (products-1)"]
   end
 
-  PB -->|"one limited key: status every 3 s, picture while public,<br/>prints every minute, spools every 5 min, slicing on request"| B
+  PB -->|"one limited key: status every 3 s, picture while public,<br/>prints every minute, spools every 5 min"| B
   PB -->|"every minute: quote status, print line, invoice draft"| IN
   PB -->|"push when a print ends or something is wrong"| Phone
   Browser -->|"live picture and status"| PB
   Me -->|"hide a print"| PB
   Build -->|"public colours, each build"| PB
-  P -->|"costs and slicing, with a token"| PB
+  P -->|"costs, with a token"| PB
   Browser -->|"order form"| NB
   NB -->|"webhook when an order is accepted"| INB
   INB -->|"draft quote"| IN
@@ -62,9 +62,9 @@ flowchart LR
 - The bridge never starts a print and never sends anything to a customer.
 - Its data moves intact, so no print creates a duplicate quote line or invoice draft. The old image stays as the way back.
 
-## To check before building
+## Checked before building
 
 1. Bambuddy's picture and a 3-second status poll work from gewerbe-1 without Cloudflare or CrowdSec blocking them.
-2. One key can cover status, camera, archive, spools and slicing, and nothing more.
+2. One key with "read status" covers status, camera, archive and spools. Real slicing would also need "manage library", so it is left for later.
 3. The hide switch can move from the homelab's sign-in to the business one.
 4. Print tracking catches up correctly after home was offline.
