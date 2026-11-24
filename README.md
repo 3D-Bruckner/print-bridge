@@ -34,7 +34,7 @@ A print finds its quote by the quote's number in its name (`3D-2026-0010 Vase`, 
 
 **Live picture, every 3 s:** while a print runs and isn't hidden, visitors get the camera picture and the status, progress and end time, never the job's name. A failed status, a failed camera or a picture older than 30 s reads as "not printing". A running print without a picture for 10 minutes sends one push.
 
-**Hide switch:** `print-bridge.marcelbruckner.de`, behind the business Authentik on gewerbe-1; Caddy adds the control token after the sign-in. A dashboard of both sides is planned to grow from it (#13). A hidden print stays hidden through a restart and returns to public when it ends.
+**Hide switch:** `print-bridge.3dbruckner.de`, behind the business Authentik on gewerbe-1; Caddy adds the control token after the sign-in. A dashboard of both sides is planned to grow from it (#13). A hidden print stays hidden through a restart and returns to public when it ends.
 
 **Inventory, every five minutes:** the public colours for the site's build, and the average purchase cost per kilogram for the portfolio's signed-in form. Both stay when Bambuddy is away.
 
