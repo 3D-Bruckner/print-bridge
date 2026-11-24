@@ -18,7 +18,7 @@ flowchart LR
   V["Browser"] -->|"/status.json, /live.jpg"| C
   W["Website build"] -->|"/colors.json"| C
   P["Portfolio"] -->|"/costs, token"| C
-  H["Hide page at home, Authentik"] -->|"/control, token"| C
+  H["Hide page, business sign-in"] -->|"/control, token"| C
   C --> PB
 ```
 
@@ -34,7 +34,7 @@ A print finds its quote by the quote's number in its name (`3D-2026-0010 Vase`, 
 
 **Live picture, every 3 s:** while a print runs and isn't hidden, visitors get the camera picture and the status, progress and end time, never the job's name. A failed status, a failed camera or a picture older than 30 s reads as "not printing". A running print without a picture for 10 minutes sends one push.
 
-**Hide switch:** `printer-live.herziis.de`, behind the homelab's Authentik, forwards to `/control` with its token. A hidden print stays hidden through a restart and returns to public when it ends.
+**Hide switch:** `print-bridge.marcelbruckner.de`, behind the business Authentik on gewerbe-1; Caddy adds the control token after the sign-in. A dashboard of both sides is planned to grow from it (#13). A hidden print stays hidden through a restart and returns to public when it ends.
 
 **Inventory, every five minutes:** the public colours for the site's build, and the average purchase cost per kilogram for the portfolio's signed-in form. Both stay when Bambuddy is away.
 
@@ -45,7 +45,7 @@ A print finds its quote by the quote's number in its name (`3D-2026-0010 Vase`, 
 | `GET /status.json`, `GET /live.jpg`        | Everyone                                          | The live print                                                           |
 | `GET /colors.json`                         | Everyone                                          | Colour, material, finish and swatch                                      |
 | `GET /costs`                               | Portfolio, with `PRINT_COSTS_TOKEN`               | Average purchase cost per kilogram                                       |
-| `GET /control`, `POST /control/visibility` | The hide page's proxy, with `PRINT_CONTROL_TOKEN` | The hide switch                                                          |
+| `GET /control`, `POST /control/visibility` | The hide page's Caddy, with `PRINT_CONTROL_TOKEN` | The hide switch                                                          |
 | `GET /health`                              | The private network                               | Database, last good minute, and `stale`: the jobs with no recent success |
 
 ## Deploying
