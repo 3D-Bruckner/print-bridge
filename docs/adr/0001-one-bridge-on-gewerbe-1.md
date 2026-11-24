@@ -28,7 +28,7 @@ The printing data took several paths: print-bridge and `printer-live` at home pu
 
 Chosen by Marcel: one service on gewerbe-1. The rule becomes: **no visitor request reaches home, and exactly one service, print-bridge, may call Bambuddy, with one limited key.** It uses Bambuddy's existing public address, with an API key that has "read status" only.
 
-The public addresses stay the same (`live.3dbruckner.de`), so the website needs no change. The hide page stays at `printer-live.herziis.de` behind the homelab's Authentik, so everyone in the household keeps access; its Caddy forwards to the bridge with a token. Real slicing is not part of this: Bambuddy's slicer service is off, and it would need the broader "manage library" permission.
+The public addresses stay the same (`live.3dbruckner.de`), so the website needs no change. The hide page is at `print-bridge.marcelbruckner.de` on gewerbe-1, behind the business Authentik; its Caddy adds the control token after the sign-in. (Until 2026-11-24 it was at home behind the homelab's Authentik; moved so that home is not in its path.) Real slicing is not part of this: Bambuddy's slicer service is off, and it would need the broader "manage library" permission.
 
 ### Consequences
 
