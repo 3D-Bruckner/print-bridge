@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-print-bridge: the A1 (through Bambuddy's archive) and Invoice Ninja, for 3dbruckner.de's orders. A plain Node/TypeScript
-service, no framework, no sign-in, no API besides /health. It also sends the public colour list to gewerbe-1 (`src/colors.ts`). Follows Marceltov/engineering-conventions; the rules here win. Design:
+print-bridge: the one service between Bambuddy and everything else of 3dbruckner.de, on gewerbe-1 (orders in `src/tracker.ts`, live picture
+in `src/live.ts`, colours and costs in `src/inventory.ts`, HTTP in `src/server.ts`). A plain Node/TypeScript service, no framework. Follows Marceltov/engineering-conventions; the rules here win. Design:
 `docs/superpowers/specs/2026-11-20-print-bridge-design.md` (decisions P1–P8).
 
 ## Commands
@@ -12,6 +12,8 @@ package.json's version, merge, tag `vX.Y.Z`.
 
 ## Rules
 
+- Purchase costs are served by `/costs` alone. A job's name, a brand, a weight, a price or a note is never in a public answer.
+- The camera token is never logged. Never run two bridges at once.
 - Never starts a print or sends anything to a customer; Invoice Ninja only gets Druckstatus, a notes line and its own conversion into
   a draft.
 - Every step is stored before the next (`src/db`), so a retry writes nothing twice. The first start acts on nothing it finds (P5).
