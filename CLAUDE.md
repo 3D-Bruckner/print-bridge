@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-print-bridge: the one service between Bambuddy and everything else of 3dbruckner.de, on gewerbe-1 (orders in `src/tracker.ts`, live picture
+print-bridge: the one service between Bambuddy and everything else of 3dbruckner.de (orders in `src/tracker.ts`, live picture
 in `src/live.ts`, colours and costs in `src/inventory.ts`, HTTP in `src/server.ts`). A plain Node/TypeScript service, no framework. Follows Marceltov/engineering-conventions; the rules here win. Design:
 `docs/superpowers/specs/2026-11-20-print-bridge-design.md` (decisions P1–P8).
 

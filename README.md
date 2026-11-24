@@ -1,24 +1,22 @@
 # print-bridge
 
-The one service between the printer's Bambuddy and everything else of 3dbruckner.de. It runs on gewerbe-1 and is the only service that calls Bambuddy, with one read-only API key. Why: [`docs/adr/0001-one-bridge-on-gewerbe-1.md`](docs/adr/0001-one-bridge-on-gewerbe-1.md).
+The one service between the printer's Bambuddy and everything else of 3dbruckner.de, and the only service that calls Bambuddy, with one read-only API key. Where it runs is the deployment's business, not this repository's. Why: [`docs/adr/0001-one-bridge-on-gewerbe-1.md`](docs/adr/0001-one-bridge-on-gewerbe-1.md).
 
 ```mermaid
 flowchart LR
   subgraph home["Home"]
     B["Bambuddy"]
   end
-  subgraph gewerbe["gewerbe-1"]
-    PB["print-bridge"]
-    IN["Invoice Ninja"]
-    C["Caddy"]
-  end
+  PB["print-bridge"]
+  IN["Invoice Ninja"]
+  C["Reverse proxy"]
   PB -->|"status every 3 s, picture while public,<br/>prints every minute, spools every 5 min"| B
   PB -->|"every minute"| IN
   PB -->|"pushes"| N["ntfy"]
   V["Browser"] -->|"/status.json, /live.jpg"| C
   W["Website build"] -->|"/colors.json"| C
   P["Portfolio"] -->|"/costs, token"| C
-  H["Hide page, business sign-in"] -->|"/control, token"| C
+  H["Hide page, behind a sign-in"] -->|"/control, token"| C
   C --> PB
 ```
 
@@ -34,7 +32,7 @@ A print finds its quote by the quote's number in its name (`3D-2026-0010 Vase`, 
 
 **Live picture, every 3 s:** while a print runs and isn't hidden, visitors get the camera picture and the status, progress and end time, never the job's name. A failed status, a failed camera or a picture older than 30 s reads as "not printing". A running print without a picture for 10 minutes sends one push.
 
-**Hide switch:** `print-bridge.3dbruckner.de`, behind the business Authentik on gewerbe-1; Caddy adds the control token after the sign-in. A dashboard of both sides is planned to grow from it (#13). A hidden print stays hidden through a restart and returns to public when it ends.
+**Hide switch:** `/control`, one page with one button. It needs the control token, so it belongs behind a sign-in, with the proxy adding the token once someone is signed in. A dashboard of both sides is planned to grow from it (#13). A hidden print stays hidden through a restart and returns to public when it ends.
 
 **Inventory, every five minutes:** the public colours for the site's build, and the average purchase cost per kilogram for the portfolio's signed-in form. Both stay when Bambuddy is away.
 
